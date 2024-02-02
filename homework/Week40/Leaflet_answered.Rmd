@@ -1,0 +1,225 @@
+---
+title: "Danmarkskort - seværdigheder"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Danmarkskortet
+
+## Task 1: Create a Danish equivalent of AUSmap with esri layers, 
+# but call it DANmap
+
+Jeg bruger de pakker vi skal bruge i dag:
+```{r}
+library(leaflet)
+library(htmlwidgets)
+library(tidyverse)
+library(googlesheets4)
+```
+
+
+I check my coordinates for Denmark with the center as the lovely place: Nobelparken
+
+```{r}
+leaflet() %>% 
+  setView(10.1870833, 56.1724452, zoom = 6) %>% 
+  addTiles()
+
+```
+### It works
+
+Jeg tildeler mit kort de selvsamme koordinater
+```{r}
+l_nobel <- leaflet() %>% 
+  setView(10.1870833, 56.1724452, zoom = 6)
+```
+
+Jeg loader et bibliotek af kort, baggrund
+```{r}
+esri <- grep("^Esri", providers, value = TRUE)
+```
+
+Jeg lægger mine danmarks-koordinater sammen med kortene, i koordinatobjektet:
+```{r}
+for (provider in esri) {
+  l_nobel <- l_nobel %>% 
+    addProviderTiles(provider, group = provider)
+}
+```
+
+Nu lægger jeg laver jeg menuer for kortene osv. på samme måde som i opgaven. Kortet bliver DANmap
+
+```{r}
+
+DANmap <- l_nobel %>%
+  addLayersControl(baseGroups = names(esri),
+                   options = layersControlOptions(collapsed = FALSE)) %>%
+  addMiniMap(tiles = esri[[1]], toggleDisplay = TRUE,
+             position = "bottomright") %>%
+  addMeasure(
+    position = "bottomleft",
+    primaryLengthUnit = "meters",
+    primaryAreaUnit = "sqmeters",
+    activeColor = "#3D535D",
+    completedColor = "#7D4479") %>% 
+  htmlwidgets::onRender("
+                        function(el, x) {
+                        var myMap = this;
+                        myMap.on('baselayerchange',
+                        function (e) {
+                        myMap.minimap.changeLayer(L.tileLayer.provider(e.name));
+                        })
+                        }") %>% 
+  addControl("", position = "topright")
+
+```
+
+Lad os prøve det:
+```{r}
+DANmap
+```
+
+
+# Task 2: Read in the googlesheet data you and your colleagues 
+# populated with data into the DANmap object you created in Task 1.
+
+Jeg loader tabellen ind. Jeg havde problemer med den givne kode, og fandt ud af jeg skulle bruge anden side: "DigitalMethods" siden, så det specificerer jeg med funktionen "sheet = "
+```{r}
+# Read in a Google sheet
+places <- read_sheet("https://docs.google.com/spreadsheets/d/1PlxsPElZML8LZKyXbqdAYeQCDIvDps2McZx1cTVWSzI/edit#gid=500762785", 
+                     sheet = "DigitalMethods",
+                     col_types = "cccnncnc")
+glimpse(places)
+
+```
+Her kan vi se at det fungerer. De numeriske lister er endda indlæst som numeriske lister.
+
+Vi kan smide punkterne ind på vores gode kort fra før ved hjælp af `addMarkers`-funktionen, som hiver oplysninger fra vores `places`-objekt
+```{r}
+
+DANmap <- l_nobel %>%
+  addLayersControl(baseGroups = names(esri),
+                   options = layersControlOptions(collapsed = FALSE)) %>%
+  addMiniMap(tiles = esri[[1]], toggleDisplay = TRUE,
+             position = "bottomright") %>%
+  addMeasure(
+    position = "bottomleft",
+    primaryLengthUnit = "meters",
+    primaryAreaUnit = "sqmeters",
+    activeColor = "#3D535D",
+    completedColor = "#7D4479") %>% 
+  htmlwidgets::onRender("
+                        function(el, x) {
+                        var myMap = this;
+                        myMap.on('baselayerchange',
+                        function (e) {
+                        myMap.minimap.changeLayer(L.tileLayer.provider(e.name));
+                        })
+                        }") %>% 
+  addControl("", position = "topright") %>%
+  addMarkers(lng = places$Longitude, 
+             lat = places$Latitude,
+             label = places$Placename, # Hvis holder musen over vores markører så viser de endda stedet. Jeg har ikke lige en måde at lave en header inde i popuppen
+             popup = places$Description)
+```
+
+## Lad os se den
+```{r}
+DANmap
+```
+
+
+# Task 3: Can you cluster the points in Leaflet? Google "clustering options in Leaflet"
+Nu skal vi lægge klynger ind der, hvor de her labels ikke kan skelnes fra hinanden af trængsel
+Det kan bare gøres i `addMarkers` med `clusterOptions`, som bare ikke må være NULL, så: `clusteroptions()`
+
+Jeg gør også lige så de clusters ikke viser det område de dækker, det ser jeg ingen grund til. Det gør jeg med `markerClusterOptions(showCoverageOnHover = FALSE)`
+
+```{r}
+
+DANmap <- l_nobel %>%
+  addLayersControl(baseGroups = names(esri),
+                   options = layersControlOptions(collapsed = FALSE)) %>%
+  addMiniMap(tiles = esri[[1]], toggleDisplay = TRUE,
+             position = "bottomright") %>%
+  addMeasure(
+    position = "bottomleft",
+    primaryLengthUnit = "meters",
+    primaryAreaUnit = "sqmeters",
+    activeColor = "#3D535D",
+    completedColor = "#7D4479") %>% 
+  htmlwidgets::onRender("
+                        function(el, x) {
+                        var myMap = this;
+                        myMap.on('baselayerchange',
+                        function (e) {
+                        myMap.minimap.changeLayer(L.tileLayer.provider(e.name));
+                        })
+                        }") %>% 
+  addControl("", position = "topright") %>%
+  addMarkers(lng = places$Longitude, 
+             lat = places$Latitude,
+             label = places$Placename, # Hvis holder musen over vores markører så viser de endda stedet. Jeg har ikke lige en måde at lave en header inde i popuppen
+             popup = places$Description,
+             clusterOptions = markerClusterOptions(showCoverageOnHover = FALSE))
+```
+
+## Lad os se den
+```{r}
+DANmap
+```
+
+
+# Task 4: Look at the map and consider what it is good for and what not.
+
+Kortet er kun godt til at finde præcise placeringer stederne er. Og nærmest også kun for hvad der er ved dem
+
+# Task 5: Find out how to display notes and classifications in the map.
+Uha nu skal det blive sjovt. Tingene fra tabellen skal lægges ind i `addMarkers(popups = ...)` med tekst-strenge efterfulgt af data fra tabellen således: `"<b>Navn: </b>", places$Placename, "<br>"`
+Jeg bruger funktion `popups = paste(...)`
+
+```{r}
+
+DANmap <- l_nobel %>%
+  addLayersControl(baseGroups = names(esri),
+                   options = layersControlOptions(collapsed = FALSE)) %>%
+  addMiniMap(tiles = esri[[1]], toggleDisplay = TRUE,
+             position = "bottomright") %>%
+  addMeasure(
+    position = "bottomleft",
+    primaryLengthUnit = "meters",
+    primaryAreaUnit = "sqmeters",
+    activeColor = "#3D535D",
+    completedColor = "#7D4479") %>% 
+  htmlwidgets::onRender("
+                        function(el, x) {
+                        var myMap = this;
+                        myMap.on('baselayerchange',
+                        function (e) {
+                        myMap.minimap.changeLayer(L.tileLayer.provider(e.name));
+                        })
+                        }") %>% 
+  addControl("", position = "topright") %>%
+  addMarkers(lng = places$Longitude, 
+             lat = places$Latitude,
+             label = places$Placename, # Hvis holder musen over vores markører så viser de endda stedet. Jeg har ikke lige en måde at lave en header inde i popuppen
+             popup = paste("<b>Navn: </b>", 
+                           places$Placename,
+                           "<br>",
+                            "<b>Type: </b>", 
+                           places$Type,
+                             "<br>",
+                             "<b>Beskrivelse: </b>",
+                             places$Description,
+                             "<br>",
+                             "<b>Stjerner mellem 1-5: </b>",
+                             places$Stars1_5),
+             clusterOptions = markerClusterOptions(showCoverageOnHover = FALSE))
+
+DANmap
+```
+# Således

@@ -1,0 +1,83 @@
+---
+title: "Kings_markdown"
+output: html_document
+author: "Jonas Hoff"
+date: "2023-10-03"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, echo = TRUE)
+```
+
+## Mit kings dokument
+
+I dette dokument vil jeg loade mine kings-data og plotte dem på et pænt søjlediagram
+
+Jeg starter med at loade mine data og tildele dem et dataset kaldet "kings"
+
+```{r kings, message=FALSE}
+library(tidyverse)
+
+kings <- read.csv2(
+  "C:/Users/dkman/Desktop/Uni/3_semester/TOM_Digitale_metoder/R/W38_intro_to_R/data/Kings.csv", na = "NA")
+
+```
+
+# Jeg formatterer variablene som datoer 
+og jeg laver vektoren "reign_time_years" som er hver konges regeringstid i år. NA-observationer er stadig NA og det er ok.
+
+```{r}
+
+kings$ReignStart1 <- as.Date(kings$ReignStart1, format="%Y-%m-%d")
+kings$ReignEnd1 <- as.Date(kings$ReignEnd1, format="%Y-%m-%d")
+
+
+reign_time_days <- as.numeric(difftime(kings$ReignEnd1, kings$ReignStart1, units = "days"))
+reign_time_years <- reign_time_days/365.25
+# Her kan I se de første 10
+reign_time_years[1:10]
+
+```
+Jeg kombinerer kongernes navne fra mine kolonner "FirstName" "Title" og "Number" så dem der ikke har en titel ikke får NA indimellem fornavn og nummer.
+Alt bliver sepereret med et mellemrum :-) 
+```{r}
+
+kings_combined_names <- ifelse(is.na(kings$Title),
+                               paste(kings$FirstName, kings$Number, sep = " "),
+                               paste(kings$FirstName, kings$Title, kings$Number, sep = " ")
+)
+# Jeg viser de første 10
+kings_combined_names[1:10]
+```
+Jeg tildeler dem som objekterne x og y til mit plot
+```{r}
+
+y <- reign_time_years
+x <- kings_combined_names
+
+```
+Jeg tildeler min plot-klasse "p" sit plot:
+  - x bliver indsat ordnet efter kongernes ende på regeringstid via "x = reorder"
+  - jeg bruger scale_x_discrete(drop = FALSE) for at få konger jeg ikke kender regeringstiden på med
+  - Med labs() kalder jeg x- og y-akserne hhv Konger og År
+  - Jeg kalder plottet "Kongers regeringstid" og skubber navnene 45 grader ud, så de kan læses
+
+```{r, out.width="100%"}
+
+p <- ggplot(data = NULL, aes(
+    x = reorder(kings_combined_names, kings$ReignEnd1), 
+    y = y)) +
+  geom_col() +
+  labs(x = "Konger", y = "År") +
+  scale_x_discrete(drop = FALSE) +
+  ggtitle("Danske kongers regeringstid") + 
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 5.5),
+    legend.position = "none" 
+    ) 
+
+p
+```
+
+Jeg fjerner legenden ude til højre så man ikke skal se en klasse for hvert kongenavn
+
